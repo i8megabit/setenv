@@ -1,32 +1,25 @@
 #!/usr/bin/env bash
-#by @eberil
+# Switch ansible role and install dependencies
 
-ansible-role () {
-   script=`basename "$0"`
-   s="/"
-   symlink=$USER_BIN$s$script
-   if [ -L $symlink ]; then
-      envfile=".env"
-      role=$1
-      sedfile=$SCRIPT_DIR$s$envfile
-      chmod 777 $sedfile
-      sed -i "1s/.*[ROLE].*/ANSIBLE_ROLE=$1/" $sedfile
-      echo $sedfile
-      cat $sedfile
-      cd $SCRIPT_DIR/ansible/$1
-      ansible-galaxy install -r requirements.yml
-      exit 0
-   else
-      ln -snf $SCRIPT_DIR/.helpers/$script $USER_BIN
-      if [ $? -eq 0 ]
-      then
-         echo -e "\e[32m Symlink succesfully created\e[0m"
-         exit 0
-      else
-         echo -e "\e[31m Create symlink failed\e[0m" >&2
-         exit 1
-     fi
-   fi
-}
+script="$(basename "$0")"
+symlink="$USER_BIN/$script"
 
-ansible-role $1
+if [[ ! -L "$symlink" ]]; then
+    ln -snf "$SCRIPT_DIR/.helpers/$script" "$USER_BIN" && {
+        echo "Symlink created at $symlink"
+        exit 0
+    }
+fi
+
+role="$1"
+if [[ -z "$role" ]]; then
+    echo "Usage: $script <role>" >&2
+    exit 1
+fi
+
+env_file="$SCRIPT_DIR/.env"
+sed -i -e "s/^ANSIBLE_ROLE=.*/ANSIBLE_ROLE=$role/" "$env_file"
+
+if [[ -d "$SCRIPT_DIR/ansible/$role" ]]; then
+    cd "$SCRIPT_DIR/ansible/$role" && ansible-galaxy install -r requirements.yml
+fi

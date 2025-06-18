@@ -1,24 +1,14 @@
 #!/usr/bin/env bash
-#by @eberil
+# Wrapper around docker-compose for this project
 
-up () {
-   script=`basename "$0"`
-   s="/"
-   symlink=$USER_BIN$s$script
-   if [ -L $symlink ]; then
-      docker-compose -f $SCRIPT_DIR/docker-compose.yml --env-file $SCRIPT_DIR/.env $@
-      exit 0
-   else
-      ln -snf $SCRIPT_DIR/$script $USER_BIN
-      if [ $? -eq 0 ]
-      then
-         echo -e "\e[32m Symlink succesfully created\e[0m"
-         exit 0
-      else
-         echo -e "\e[31m Create symlink failed\e[0m" >&2
-         exit 1
-     fi
-   fi
-}
+script="$(basename "$0")"
+symlink="$USER_BIN/$script"
 
-up $@
+if [[ ! -L "$symlink" ]]; then
+    ln -snf "$SCRIPT_DIR/$script" "$USER_BIN" && {
+        echo "Symlink created at $symlink"
+        exit 0
+    }
+fi
+
+docker-compose -f "$SCRIPT_DIR/docker-compose.yml" --env-file "$SCRIPT_DIR/.env" "$@"
