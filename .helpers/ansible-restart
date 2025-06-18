@@ -1,32 +1,24 @@
 #!/usr/bin/env bash
-#by @eberil
+# Restart ansible container after switching the role
 
-ansible-restart () {
-   script=`basename "$0"`
-   s="/"
-   symlink=$USER_BIN$s$script
-   if [ "$1" != "" ]
-   then
-      ansible-role $1
-   else
-      echo "ansible role argument is empty. Usage: ansible [ TYPE ROLE HERE ]" 
-   fi
-   if [ -L $symlink ] 
-   then
-      docker-stack kill ansible
-      docker-stack rm -f ansible
-      docker-stack up -d ansible
-      exit 0
-   else ln -snf $SCRIPT_DIR/.helpers/$script $USER_BIN
-      if [ $? -eq 0 ]
-      then
-         echo -e "\e[32m Symlink succesfully created\e[0m"
-         exit 0
-      else
-         echo -e "\e[31m Create symlink failed\e[0m" >&2
-         exit 1
-      fi
-   fi
-}
+script="$(basename "$0")"
+symlink="$USER_BIN/$script"
 
-ansible-restart $@
+if [[ ! -L "$symlink" ]]; then
+    ln -snf "$SCRIPT_DIR/.helpers/$script" "$USER_BIN" && {
+        echo "Symlink created at $symlink"
+        exit 0
+    }
+fi
+
+role="$1"
+if [[ -n "$role" ]]; then
+    ansible-role "$role"
+else
+    echo "Usage: $script <role>" >&2
+    exit 1
+fi
+
+docker-stack kill ansible
+docker-stack rm -f ansible
+docker-stack up -d ansible

@@ -1,62 +1,46 @@
 #!/usr/bin/env bash
-#by @eberil
+# Manage helper scripts installation
 
-# fuctions
-setenv () {
-   echo $0
-   if [[ $1 = 'root' ]]
-   then
-   runuser=$1
-   echo "runuser is '$runuser'"
-   userdir="/root"
-   else
-   runuser=$(export | grep SUDO_USER | sed 's/declare\|-\|x\|SUDO_USER\|=\|"\| //g')
-   userdir=$(eval echo "~$USER")
-   fi
-   export USER=$runuser
-   shellfile=".bashrc"
-   s7r="/" # separator
-   bin="bin"
-   echo $USER
-   echo $userdir
-   scriptpath=$(readlink -e $0)
-   echo "scriptpath is '$scriptpath'"
-   scriptdir=$(dirname "$scriptpath")
-   echo "scriptdir is '$scriptdir'"
-   bindir=$userdir$s7r$bin
-   bashrcfile=$userdir$s7r$shellfile
-   echo "bindir is '$bindir'"
-   mkdir -p $bindir
-   chmod -R +x $bindir && chown -R $runuser:$sudo $bindir
-   ln -snf $scriptpath $bindir
-   ls -la $bindir
-   if [ $? -eq 1 ]
-   then
-      echo -e "\e[31m Failed\e[0m" >&2
-      exit 1
-   else
-      echo "export PATH=$PATH:$bindir" >> $bashrcfile
-      echo "export SCRIPT_DIR='$scriptdir'" >> $bashrcfile
-      echo "export SCRIPT_PATH='$scriptpath'" >> $bashrcfile
-      echo "export SETENV_SET='true'"  >> $bashrcfile
-      echo "export BASHRC_FILE='$bashrcfile'"  >> $bashrcfile
-      echo "export USER_BIN='$bindir'" >> $bashrcfile
-      source $bashrcfile
-      exit 0
-   fi
+VERSION="1.2.0"
+
+setenv() {
+    local runuser homedir
+    if [[ $1 == "root" ]]; then
+        runuser="root"
+        homedir="/root"
+    else
+        runuser="${SUDO_USER:-$USER}"
+        homedir="$(eval echo "~$runuser")"
+    fi
+
+    export USER="$runuser"
+    local bindir="$homedir/bin"
+    local bashrc="$homedir/.bashrc"
+    local scriptpath="$(readlink -f "$0")"
+    local scriptdir="$(dirname "$scriptpath")"
+
+    mkdir -p "$bindir"
+    chmod -R +x "$bindir"
+    chown -R "$runuser":"$runuser" "$bindir"
+    ln -snf "$scriptpath" "$bindir/$(basename "$0")"
+
+    {
+        echo "export PATH=\"$PATH:$bindir\""
+        echo "export SCRIPT_DIR=\"$scriptdir\""
+        echo "export SCRIPT_PATH=\"$scriptpath\""
+        echo "export SETENV_SET=true"
+        echo "export BASHRC_FILE=\"$bashrc\""
+        echo "export USER_BIN=\"$bindir\""
+        echo "export SETENV_VERSION=\"$VERSION\""
+    } >> "$bashrc"
+    source "$bashrc"
 }
 
-if [[ $(echo $SETENV_SET) != "true" ]]
-then
-   echo "Setup setenv started"
-   setenv $1
-   exit 0
+if [[ "$SETENV_SET" != "true" ]]; then
+    echo "Setup setenv started"
+    setenv "$1"
+    exit 0
 else
-   echo "'$0' Succesfully installed"
-   echo "export SETENV_SET='false'" >> $BASHRC_FILE
-   source $BASHRC_FILE
-   exit 0
+    echo "'$0' already installed"
+    exit 0
 fi
-
-$scriptdir/docker-stack
-source $bashrcfile
